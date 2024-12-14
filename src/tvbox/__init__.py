@@ -49,7 +49,7 @@ def start() -> None:
         )
 
         logger.info("MAIN: Spawning STREAM video streaming process")
-        executor.submit(process_run, stream_run, event_exit, queue_stream)
+        # executor.submit(process_run, stream_run, event_exit, queue_stream)
 
         logger.info("MAIN: Spawning VIDEO player process")
         executor.submit(process_run, video_run, event_exit, queue_play)

@@ -14,6 +14,8 @@ async def stream(queue: Queue) -> None:
     process = subprocess.Popen(
         [
             "ffmpeg",
+            "-hwaccel",
+            "cuda",
             "-re",
             "-y",
             "-i",

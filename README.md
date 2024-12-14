@@ -23,7 +23,7 @@ $ TWITCH_KEY=$YOUR_KEY tvbox
 
 # Description
 
-Currently the script will attempt to download from https://replicantlife.com/distribution/station_feed and will start playing from the last video in the list. The feed is fetched every 30 minutes, and new videos will be added to the playlist if applicable. Once the first video is downloaded, and re-encoded to mpeg-ts, an mpv playback window will appear, and another copy of the video would be streamed live to Twitch.tv.
+Currently the script will attempt to download from https://replicantlife.com/distribution/station_feed and will start playing from the last video in the list. The feed is fetched every 30 minutes, and new videos will be added to the playlist if applicable. Once the first video started downloading, an mpv playback window will appear, and another copy of the video would be streamed live to Twitch.tv.
 
 # Original spec
 
