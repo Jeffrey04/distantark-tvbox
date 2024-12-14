@@ -7,6 +7,7 @@ Prerequisites:
 2. python 3.12+
 3. ffmpeg
 4. mpv
+5. Nvidia GPU
 
 Run the setup by
 ```

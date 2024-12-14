@@ -22,28 +22,26 @@ async def write_input(
 
 async def video_send(queue: Queue, client: httpx.AsyncClient, video_link: str) -> None:
     logger.info("DATA: Fetching video from link", link=video_link)
-    process = await asyncio.create_subprocess_shell(
-        " ".join(
-            [
-                "ffmpeg",
-                "-hwaccel",
-                "cuda",
-                "-i",
-                "pipe:0",
-                "-c:v",
-                "libx264",
-                "-b:v",
-                "1.5M",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                "-f",
-                "mpegts",
-                "-y",
-                "pipe:1",
-            ]
-        ),
+    process = await asyncio.create_subprocess_exec(
+        "ffmpeg",
+        *[
+            "-hwaccel",
+            "cuda",
+            "-i",
+            "pipe:0",
+            "-c:v",
+            "h264_nvenc",
+            "-b:v",
+            "1.5M",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-f",
+            "mpegts",
+            "-y",
+            "pipe:1",
+        ],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
     )

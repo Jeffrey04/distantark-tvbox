@@ -10,8 +10,9 @@ logger = structlog.getLogger(__name__)
 
 async def playback(queue: Queue) -> None:
     logger.info("VIDEO: Starting video player")
-    process = subprocess.Popen(
-        ["mpv", "-", "--fullscreen"],
+    process = await asyncio.create_subprocess_exec(
+        "mpv",
+        *["-", "--fullscreen"],
         stdin=subprocess.PIPE,
         # stdout=subprocess.PIPE,
         # stderr=subprocess.PIPE,

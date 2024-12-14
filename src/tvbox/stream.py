@@ -11,9 +11,9 @@ logger = structlog.getLogger(__name__)
 
 async def stream(queue: Queue) -> None:
     logger.info("STREAM: Starting video streaming")
-    process = subprocess.Popen(
-        [
-            "ffmpeg",
+    process = await asyncio.create_subprocess_exec(
+        "ffmpeg",
+        *[
             "-hwaccel",
             "cuda",
             "-re",
