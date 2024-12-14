@@ -48,14 +48,21 @@ async def video_send(queue: Queue, client: httpx.AsyncClient, video_link: str) -
 
     asyncio.create_task(write_input(client, video_link, process))
 
-    while not process.stdout.at_eof():  # type: ignore
-        await asyncio.to_thread(partial(queue.put, await process.stdout.read(1024)))  # type: ignore
+    while True:  # type: ignore
+        try:
+            data = await asyncio.wait_for(process.stdout.read(1024), 5)  # type: ignore
+            await asyncio.to_thread(partial(queue.put, data))  # type: ignore
+        except asyncio.TimeoutError:
+            process.terminate()
+            break
 
 
 async def data_poll(queue: Queue):
     sent_videos = []
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(
+        transport=httpx.AsyncHTTPTransport(retries=99)
+    ) as client:
         while True:
             response = await client.get(
                 "https://replicantlife.com/distribution/station_feed"
