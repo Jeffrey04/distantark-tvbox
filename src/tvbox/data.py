@@ -1,6 +1,5 @@
 import asyncio
 import subprocess
-from asyncio.subprocess import Process
 from functools import partial
 from queue import Queue
 from threading import Event
@@ -14,11 +13,23 @@ logger = structlog.getLogger(__name__)
 async def write_input(
     client: httpx.AsyncClient, video_link: str, process: asyncio.subprocess.Process
 ) -> None:
+    assert isinstance(process.stdin, asyncio.StreamWriter)
+
     try:
         async with client.stream("GET", video_link) as response:
             logger.info("DATA: Streaming video to queue", link=video_link)
             async for chunk in response.aiter_raw(1024):
-                process.stdin.write(chunk)  # type: ignore
+                process.stdin.write(chunk)
+                await process.stdin.drain()
+
+            if process.stdin.can_write_eof():
+                process.stdin.write_eof()
+
+            process.stdin.close()
+            await process.stdin.wait_closed()
+
+        logger.info("DATA: Done downloading video to ffmpeg")
+
     except Exception as e:
         logger.error(
             "Encountered error in processing video link, skipping",
@@ -31,37 +42,46 @@ async def video_send(queue: Queue, client: httpx.AsyncClient, video_link: str) -
     logger.info("DATA: Fetching video from link", link=video_link)
     process = await asyncio.create_subprocess_exec(
         "ffmpeg",
-        *[
-            "-hwaccel",
-            "cuda",
-            "-i",
-            "pipe:0",
-            "-c:v",
-            "h264_nvenc",
-            "-b:v",
-            "1.5M",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
-            "-f",
-            "mpegts",
-            "-y",
-            "pipe:1",
-        ],
+        "-hwaccel",
+        "cuda",
+        "-i",
+        "pipe:0",
+        "-c:v",
+        "h264_nvenc",
+        # "libx264",
+        "-b:v",
+        "1.5M",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-f",
+        "mpegts",
+        "-y",
+        "pipe:1",
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
     )
 
     asyncio.create_task(write_input(client, video_link, process))
 
-    while True:  # type: ignore
+    assert isinstance(process.stdout, asyncio.StreamReader)
+
+    while True:
         try:
-            data = await asyncio.wait_for(process.stdout.read(1024), 5)  # type: ignore
-            await asyncio.to_thread(partial(queue.put, data))  # type: ignore
+            chunk = await asyncio.wait_for(process.stdout.read(1024), 5)
+
         except asyncio.TimeoutError:
             process.terminate()
             break
+
+        await asyncio.to_thread(partial(queue.put, chunk))
+
+        if chunk == b"":
+            process.terminate()
+            break
+
+    logger.info("DATA: Done sending video to queue", process=process.returncode)
 
 
 async def data_poll(queue: Queue):

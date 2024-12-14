@@ -13,42 +13,49 @@ async def stream(queue: Queue) -> None:
     logger.info("STREAM: Starting video streaming")
     process = await asyncio.create_subprocess_exec(
         "ffmpeg",
-        *[
-            "-hwaccel",
-            "cuda",
-            "-re",
-            "-y",
-            "-i",
-            "pipe:0",
-            "-c:a",
-            "copy",
-            "-ac",
-            "1",
-            "-ar",
-            "44100",
-            "-b:a",
-            "96k",
-            "-vcodec",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-tune",
-            "zerolatency",
-            "-f",
-            "flv",
-            "-maxrate",
-            "2000k",
-            "-preset",
-            "veryfast",
-            "-g",
-            "60",
-            f"rtmp://live-fra.twitch.tv/app/{environ['TWITCH_KEY']}",
-        ],
+        "-hwaccel",
+        "cuda",
+        "-re",
+        "-y",
+        "-i",
+        "pipe:0",
+        "-c:a",
+        "copy",
+        "-ac",
+        "1",
+        "-ar",
+        "44100",
+        "-b:a",
+        "96k",
+        "-vcodec",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-tune",
+        "zerolatency",
+        "-f",
+        "flv",
+        "-maxrate",
+        "2000k",
+        "-preset",
+        "veryfast",
+        "-g",
+        "60",
+        f"rtmp://live-fra.twitch.tv/app/{environ['TWITCH_KEY']}",
         stdin=subprocess.PIPE,
     )
 
+    assert isinstance(process.stdin, asyncio.StreamWriter)
+
     while data := await asyncio.to_thread(queue.get):
-        process.stdin.write(data)  # type: ignore
+        process.stdin.write(data)
+        assert process.stdin.drain()
+
+    if process.stdin.can_write_eof():
+        process.stdin.write_eof()
+
+    process.stdin.close()
+    await process.stdin.wait_closed()
 
 
 async def run(exit_event: Event, queue: Queue) -> None:
