@@ -4,7 +4,7 @@
 
 Prerequisites:
 1. [uv](https://github.com/astral-sh/uv)
-2. python 3.12+
+2. python 3.13+
 3. ffmpeg
 4. mpv
 5. Nvidia GPU
