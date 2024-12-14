@@ -14,10 +14,17 @@ logger = structlog.getLogger(__name__)
 async def write_input(
     client: httpx.AsyncClient, video_link: str, process: asyncio.subprocess.Process
 ) -> None:
-    async with client.stream("GET", video_link) as response:
-        logger.info("DATA: Streaming video to queue", link=video_link)
-        async for chunk in response.aiter_raw(1024):
-            process.stdin.write(chunk)  # type: ignore
+    try:
+        async with client.stream("GET", video_link) as response:
+            logger.info("DATA: Streaming video to queue", link=video_link)
+            async for chunk in response.aiter_raw(1024):
+                process.stdin.write(chunk)  # type: ignore
+    except Exception as e:
+        logger.error(
+            "Encountered error in processing video link, skipping",
+            video_link=video_link,
+        )
+        logger.exception(e)
 
 
 async def video_send(queue: Queue, client: httpx.AsyncClient, video_link: str) -> None:

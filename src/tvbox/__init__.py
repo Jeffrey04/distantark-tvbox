@@ -1,6 +1,6 @@
 import signal
 from collections.abc import Callable, Coroutine
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Future, ProcessPoolExecutor
 from functools import partial
 from multiprocessing import Manager
 from threading import Event
@@ -17,10 +17,26 @@ from tvbox.video import run as video_run
 
 logger = structlog.getLogger(__name__)
 
+def done_handler(
+    future: Future,
+    name: str,
+    event_exit: Event,
+) -> None:
+    logger.info(
+        "MAIN: Task is done, prompting others to quit",
+        name=name,
+        future=future,
+    )
 
-def shutdown_handler(_signum, _frame, exit_event: Event) -> None:
+    if future.exception() is not None:
+        logger.exception(future.exception())
+
+    shutdown_handler(None, None, event_exit)
+
+
+def shutdown_handler(_signum, _frame, event_exit: Event) -> None:
     logger.info("MAIN: Sending exit event to all tasks in pool")
-    exit_event.set()
+    event_exit.set()
 
 
 def process_run(
@@ -38,21 +54,34 @@ def start() -> None:
 
     with ProcessPoolExecutor(max_workers=5) as executor:
         for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
-            signal.signal(s, partial(shutdown_handler, exit_event=event_exit))
+            signal.signal(s, partial(shutdown_handler, event_exit=event_exit))
 
         logger.info("MAIN: Spawning DATA fetching process")
-        executor.submit(process_run, data_run, event_exit, queue_data)
-
-        logger.info("MAIN: Spwawing DATA broadcasting process")
         executor.submit(
-            process_run, broadcast_run, event_exit, queue_data, queue_play, queue_stream
+            process_run, data_run, event_exit, queue_data
+        ).add_done_callback(partial(done_handler, name="DATA", event_exit=event_exit))
+
+        logger.info("MAIN: Spwawing BROADCAST data broadcasting process")
+        executor.submit(
+            process_run,
+            broadcast_run,
+            event_exit,
+            queue_data,
+            queue_play,
+            queue_stream,
+        ).add_done_callback(
+            partial(done_handler, name="BROADCAST", event_exit=event_exit)
         )
 
         logger.info("MAIN: Spawning STREAM video streaming process")
-        executor.submit(process_run, stream_run, event_exit, queue_stream)
+        executor.submit(
+            process_run, stream_run, event_exit, queue_stream
+        ).add_done_callback(partial(done_handler, name="STREAM", event_exit=event_exit))
 
         logger.info("MAIN: Spawning VIDEO player process")
-        executor.submit(process_run, video_run, event_exit, queue_play)
+        executor.submit(
+            process_run, video_run, event_exit, queue_play
+        ).add_done_callback(partial(done_handler, name="VIDEO", event_exit=event_exit))
 
 
 def main() -> None:
