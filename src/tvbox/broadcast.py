@@ -21,15 +21,15 @@ async def run(
 async def queue_broadcast(queue_data: Queue, *queues: Queue) -> None:
     while True:
         try:
-            logger.debug(
-                "BROADCAST: Data broadcasting process is waiting for video data"
-            )
+            # logger.debug(
+            #    "BROADCAST: Data broadcasting process is waiting for video data"
+            # )
             data = await asyncio.to_thread(partial(queue_data.get, timeout=5))
 
             async with asyncio.TaskGroup() as tg:
-                logger.debug(
-                    "BROADCAST: Data broadcasting process is broadcasting video data to play and stream queue"
-                )
+                # logger.debug(
+                #    "BROADCAST: Data broadcasting process is broadcasting video data to play and stream queue"
+                # )
                 for queue in queues:
                     tg.create_task(asyncio.to_thread(partial(queue.put, data)))
 

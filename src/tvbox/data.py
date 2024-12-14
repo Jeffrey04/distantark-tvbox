@@ -1,4 +1,5 @@
 import asyncio
+import subprocess
 from functools import partial
 from queue import Queue
 from threading import Event
@@ -12,11 +13,35 @@ logger = structlog.getLogger(__name__)
 async def video_send(queue: Queue, client: httpx.AsyncClient, video_link: str) -> None:
     logger.info("DATA: Fetching video from link", link=video_link)
     response = await client.get(video_link)
-    # await asyncio.to_thread(partial(queue.put, response.content))
-    async with client.stream("GET", video_link) as response:
-        logger.info("DATA: Streaming video to queue", link=video_link)
-        async for chunk in response.aiter_raw(1024):
-            await asyncio.to_thread(partial(queue.put, chunk))
+    process = subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            "pipe:0",
+            "-c:v",
+            "libx264",
+            "-b:v",
+            "1.5M",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-f",
+            "mpegts",
+            "-y",
+            "pipe:1",
+        ],
+        input=response.content,
+        # stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+    )
+    await asyncio.to_thread(partial(queue.put, process.stdout))
+    # async with client.stream("GET", video_link) as response:
+    #    logger.info("DATA: Streaming video to queue", link=video_link)
+    #    async for chunk in response.aiter_raw(1024):
+    #        (output, stderr) = process.communicate(chunk)
+
+    #        await asyncio.to_thread(partial(queue.put, output))
 
 
 async def data_poll(queue: Queue):

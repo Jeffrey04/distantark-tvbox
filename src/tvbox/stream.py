@@ -38,6 +38,8 @@ async def stream(queue: Queue) -> None:
             "2000k",
             "-preset",
             "veryfast",
+            "-g",
+            "60",
             f"rtmp://live-fra.twitch.tv/app/{environ['TWITCH_KEY']}",
         ],
         stdin=subprocess.PIPE,

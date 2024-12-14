@@ -1,4 +1,3 @@
-import logging
 import signal
 from collections.abc import Callable, Coroutine
 from concurrent.futures import ProcessPoolExecutor
@@ -17,7 +16,6 @@ from tvbox.stream import run as stream_run
 from tvbox.video import run as video_run
 
 logger = structlog.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def shutdown_handler(_signum, _frame, exit_event: Event) -> None:
