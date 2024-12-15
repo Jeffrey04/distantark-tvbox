@@ -49,13 +49,12 @@ async def stream(queue: Queue) -> None:
 
     while data := await asyncio.to_thread(queue.get):
         process.stdin.write(data)
-        assert process.stdin.drain()
-
-    if process.stdin.can_write_eof():
-        process.stdin.write_eof()
+        await process.stdin.drain()
 
     process.stdin.close()
     await process.stdin.wait_closed()
+
+    logger.info("STREAM: Done streaming video")
 
 
 async def run(exit_event: Event, queue: Queue) -> None:

@@ -21,13 +21,12 @@ async def playback(queue: Queue) -> None:
 
     while data := await asyncio.to_thread(queue.get):
         process.stdin.write(data)
-        assert process.stdin.drain()
-
-    if process.stdin.can_write_eof():
-        process.stdin.write_eof()
+        await process.stdin.drain()
 
     process.stdin.close()
     await process.stdin.wait_closed()
+
+    logger.info("VIDEO: Done playing back video")
 
 
 async def run(exit_event: Event, queue: Queue) -> None:

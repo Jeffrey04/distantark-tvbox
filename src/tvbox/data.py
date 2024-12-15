@@ -22,9 +22,6 @@ async def write_input(
                 process.stdin.write(chunk)
                 await process.stdin.drain()
 
-            if process.stdin.can_write_eof():
-                process.stdin.write_eof()
-
             process.stdin.close()
             await process.stdin.wait_closed()
 
@@ -72,16 +69,14 @@ async def video_send(queue: Queue, client: httpx.AsyncClient, video_link: str) -
             chunk = await asyncio.wait_for(process.stdout.read(1024), 5)
 
         except asyncio.TimeoutError:
-            process.terminate()
             break
 
-        await asyncio.to_thread(partial(queue.put, chunk))
-
-        if chunk == b"":
-            process.terminate()
+        if not chunk:
             break
+        else:
+            await asyncio.to_thread(partial(queue.put, chunk))
 
-    logger.info("DATA: Done sending video to queue", process=process.returncode)
+    logger.info("DATA: Done sending video to queue")
 
 
 async def data_poll(queue: Queue):
